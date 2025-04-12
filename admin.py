@@ -1,7 +1,7 @@
 import flet as ft
 
-def main_interface(page: ft.Page):
-    page.title = "Punto de Venta - Cajero"
+def admin_interface(page: ft.Page):
+    page.title = "Punto de Venta - Administrador"
     page.window_maximized = True
     page.theme_mode = ft.ThemeMode.LIGHT
     page.clean()
@@ -46,14 +46,8 @@ def main_interface(page: ft.Page):
         on_change=lambda e: actualizar_cambio()
     )
     
-    cambio_text = ft.Text("Cambio: $0.00", size=18, weight=ft.FontWeight.BOLD)
-    total_text = ft.Text("Total: $0.00", size=18, weight=ft.FontWeight.BOLD)
-    total_floating = ft.Container(
-        content=ft.Text("Total: $0.00", size=28, weight=ft.FontWeight.BOLD),
-        padding=15,
-        right=20,
-        bottom=20,
-    )
+    cambio_text = ft.Text("Cambio: $0.00", size=18)
+    total_text = ft.Text("Total: $0.00", size=18)
     
     pago_section = ft.Container(
         content=ft.Column([
@@ -113,23 +107,16 @@ def main_interface(page: ft.Page):
     
     def actualizar_lista():
         product_list.controls.clear()
-        busqueda = search_field.value.strip().lower()
-
-        if not busqueda:
-            page.update()
-            return  # No mostrar nada si está vacío
+        busqueda = search_field.value.lower()
 
         for p in productos:
-            if busqueda == p["id"].lower() or busqueda in p["nombre"].lower():
+            if busqueda in p["nombre"].lower() or busqueda in p["id"]:
                 product_list.controls.append(ft.ListTile(
                     title=ft.Text(f"{p['id']} - {p['nombre']} - ${p['precio']:.2f}"),
                     subtitle=ft.Text(f"Disponibles: {p['cantidad']}"),
                     trailing=ft.IconButton(ft.Icons.ADD, on_click=lambda e, p=p: agregar_al_carrito(p))
                 ))
-                break  # Solo mostrar el primero que coincide
-
         page.update()
-
     
     def agregar_al_carrito(producto):
         if producto["nombre"] in carrito:
@@ -162,15 +149,11 @@ def main_interface(page: ft.Page):
         proceder_al_pago_btn.visible = len(carrito) > 0
         
         actualizar_total()
+        page.update()
     
     def actualizar_total():
         total = sum(info["precio"] * info["cantidad"] for info in carrito.values())
         total_text.value = f"Total: ${total:.2f}"
-        if total > 0:
-            total_floating.content.value = f"Total: ${total:.2f}"
-            total_floating.visible = True
-        else:
-            total_floating.visible = False
         actualizar_cambio()
         page.update()
     
@@ -270,9 +253,50 @@ def main_interface(page: ft.Page):
             page.update()
 
         actualizar_tabla()
- 
+
+        # Campos de formulario
+        new_product_id = ft.TextField(label="ID del producto")
+        new_product_name = ft.TextField(label="Nombre del producto")
+        new_product_price = ft.TextField(label="Precio", keyboard_type=ft.KeyboardType.NUMBER)
+        new_product_quantity = ft.TextField(label="Cantidad", keyboard_type=ft.KeyboardType.NUMBER)
+
+        # Contenedor que será mostrado/ocultado
+        form_container = ft.Column([
+            new_product_id,
+            new_product_name,
+            new_product_price,
+            new_product_quantity,
+            ft.ElevatedButton("Guardar", icon=ft.Icons.SAVE, on_click=lambda e: agregar_producto(e))
+        ], visible=False, spacing=10)
+
+        def agregar_producto(e):
+            if all([new_product_id.value, new_product_name.value, new_product_price.value, new_product_quantity.value]):
+                productos.append({
+                    "id": new_product_id.value,
+                    "nombre": new_product_name.value,
+                    "precio": float(new_product_price.value),
+                    "cantidad": int(new_product_quantity.value)
+                })
+                new_product_id.value = ""
+                new_product_name.value = ""
+                new_product_price.value = ""
+                new_product_quantity.value = ""
+                actualizar_tabla()
+                form_container.visible = False
+                page.update()
+
+        def toggle_formulario(e):
+            form_container.visible = not form_container.visible
+            page.update()
+
         return ft.Column([
             ft.Text("Gestión de Inventario", size=24, weight=ft.FontWeight.BOLD),
+            ft.ElevatedButton(
+                "Agregar Producto",
+                icon=ft.Icons.ADD,
+                on_click=toggle_formulario
+            ),
+            form_container,
             ft.Container(
                 content=inventario_table,
                 expand=True,
@@ -304,9 +328,6 @@ def main_interface(page: ft.Page):
 
     navigation.on_change = change_view
     layout = ft.Row([navigation, ft.VerticalDivider(width=1), content], expand=True)
-    
-    # Agregar el contenedor flotante como overlay
-    page.overlay.append(total_floating)
     
     page.add(layout)
     change_view(None)  # Inicializar con la vista de ventas
