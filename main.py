@@ -166,7 +166,7 @@ def main_interface(page: ft.Page):
     def actualizar_total():
         total = sum(info["precio"] * info["cantidad"] for info in carrito.values())
         total_text.value = f"Total: ${total:.2f}"
-        if total > 0:
+        if total > 0 and navigation.selected_index == 0:  # Solo mostrar en vista de ventas
             total_floating.content.value = f"Total: ${total:.2f}"
             total_floating.visible = True
         else:
@@ -248,47 +248,115 @@ def main_interface(page: ft.Page):
         ])
 
     def inventario_view():
+        # Botones de exportar
+        exportar_btn = ft.ElevatedButton(
+            "Exportar Inventario",
+            icon=ft.icons.DOWNLOAD,
+        )
+
         # Tabla de inventario
         table_columns = [
-            ft.DataColumn(ft.Text("ID")),
-            ft.DataColumn(ft.Text("Nombre")),
-            ft.DataColumn(ft.Text("Precio")),
-            ft.DataColumn(ft.Text("En existencia")),
+            ft.DataColumn(ft.Text("ID", width=100)),
+            ft.DataColumn(ft.Text("Nombre", width=200)),
+            ft.DataColumn(ft.Text("Precio", width=150)),
+            ft.DataColumn(ft.Text("En existencia", width=150)),
         ]
 
-        inventario_table = ft.DataTable(columns=table_columns, rows=[])
+        inventario_table = ft.DataTable(
+            columns=table_columns,
+            rows=[],
+            column_spacing=20,
+            horizontal_margin=10,
+            divider_thickness=0.5,
+            heading_row_color=ft.colors.GREY_200,
+            heading_row_height=40,
+            data_row_min_height=40,
+        )
 
         def actualizar_tabla():
             inventario_table.rows.clear()
             for p in productos:
-                inventario_table.rows.append(ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(p["id"])),
-                    ft.DataCell(ft.Text(p["nombre"])),
-                    ft.DataCell(ft.Text(f"${p['precio']:.2f}")),
-                    ft.DataCell(ft.Text(str(p["cantidad"])))
-                ]))
+                inventario_table.rows.append(ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(p["id"])),
+                        ft.DataCell(ft.Text(p["nombre"])),
+                        ft.DataCell(ft.Text(f"${p['precio']:.2f}")),
+                        ft.DataCell(ft.Text(str(p["cantidad"])))
+                    ]
+                ))
             page.update()
 
         actualizar_tabla()
- 
-        return ft.Column([
-            ft.Text("Gestión de Inventario", size=24, weight=ft.FontWeight.BOLD),
-            ft.Container(
-                content=inventario_table,
-                expand=True,
-                padding=10,
-                border=ft.border.all(1, ft.Colors.GREY_300),
-                border_radius=10,
-                bgcolor=ft.Colors.WHITE
-            )
-        ], expand=True)
+
+        return ft.Column(
+            controls=[
+                ft.Row(
+                    controls=[
+                        ft.Text("Gestión de Inventario", size=24, weight=ft.FontWeight.BOLD, expand=True),
+                        exportar_btn
+                    ],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                ),
+                ft.Container(
+                    content=ft.ListView(
+                        controls=[inventario_table],
+                        expand=True,
+                        spacing=10,
+                    ),
+                    border=ft.border.all(1, ft.colors.GREY_300),
+                    border_radius=10,
+                    expand=True,
+                    padding=10,
+                )
+            ],
+            expand=True,
+            spacing=20
+        )
 
     def reportes_view():
+        rango_selector = ft.Dropdown(
+            label="Selecciona el rango de tiempo",
+            options=[
+                ft.dropdown.Option("Día"),
+                ft.dropdown.Option("Semana"),
+                ft.dropdown.Option("Mes"),
+            ],
+            value="Día",  # Valor por defecto
+            width=300
+        )
+
+        formato_selector = ft.Dropdown(
+            label="Selecciona el formato",
+            options=[
+                ft.dropdown.Option("PDF"),
+                ft.dropdown.Option("Excel"),
+            ],
+            value="PDF",  # Valor por defecto
+            width=300
+        )
+
+        resultado_texto = ft.Text("", size=16, color=ft.Colors.BLUE)
+
+        def exportar_reporte(e):
+            rango = rango_selector.value
+            formato = formato_selector.value
+            resultado_texto.value = f"Exportando reporte de {rango} en formato {formato}..."
+            page.update()
+            # Aquí iría la lógica real de exportación
+
+        exportar_btn = ft.ElevatedButton(
+            "Exportar Reporte",
+            icon=ft.Icons.DOWNLOAD,
+            on_click=exportar_reporte
+        )
+
         return ft.Column([
             ft.Text("Reportes de Ventas", size=24, weight=ft.FontWeight.BOLD),
-            ft.ElevatedButton("Exportar a PDF", icon=ft.Icons.PICTURE_AS_PDF),
-            ft.ElevatedButton("Exportar a Excel", icon=ft.Icons.TABLE_CHART),
-        ])
+            rango_selector,
+            formato_selector,
+            exportar_btn,
+            resultado_texto
+        ], spacing=20)
 
     content = ft.Container(expand=True)
 
@@ -300,6 +368,10 @@ def main_interface(page: ft.Page):
             content.content = inventario_view()
         elif index == 2:
             content.content = reportes_view()
+        
+        # Ocultar total flotante cuando no está en ventas
+        if index != 0:
+            total_floating.visible = False
         page.update()
 
     navigation.on_change = change_view

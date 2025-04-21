@@ -9,7 +9,7 @@ def login_view(page: ft.Page):
 
     user_field = ft.TextField(label="Usuario", bgcolor="white", color="black", border_radius=15)
     pass_field = ft.TextField(label="Contraseña", password=True, can_reveal_password=True, bgcolor="white", color="black", border_radius=15)
-    message = ft.Text("", color=ft.colors.RED)
+    message = ft.Text("", color=ft.Colors.RED)
 
     def iniciar_sesion(e):
         usuario = user_field.value
