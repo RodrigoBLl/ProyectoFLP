@@ -248,11 +248,11 @@ def admin_interface(page: ft.Page):
         ])
 
     def inventario_view():
-        # Botones de exportar
-        exportar_btn = ft.ElevatedButton(
-            "Exportar Inventario",
-            icon=ft.icons.DOWNLOAD,
-        )
+        # Botones principales
+        importar_btn = ft.ElevatedButton("Importar Inventario", icon=ft.icons.DOWNLOAD)
+        exportar_btn = ft.ElevatedButton("Exportar Inventario", icon=ft.icons.UPLOAD)
+        agregar_btn = ft.ElevatedButton("Agregar Producto", icon=ft.icons.ADD)
+        eliminar_btn = ft.ElevatedButton("Eliminar Producto", icon=ft.icons.DELETE)
 
         # Tabla de inventario
         table_columns = [
@@ -276,27 +276,131 @@ def admin_interface(page: ft.Page):
         def actualizar_tabla():
             inventario_table.rows.clear()
             for p in productos:
-                inventario_table.rows.append(ft.DataRow(
-                    cells=[
+                inventario_table.rows.append(
+                    ft.DataRow(cells=[
                         ft.DataCell(ft.Text(p["id"])),
                         ft.DataCell(ft.Text(p["nombre"])),
                         ft.DataCell(ft.Text(f"${p['precio']:.2f}")),
-                        ft.DataCell(ft.Text(str(p["cantidad"])))
-                    ]
-                ))
+                        ft.DataCell(ft.Text(str(p["cantidad"]))),
+                    ])
+                )
             page.update()
 
+        # Controles para agregar producto
+        id_input = ft.TextField(label="ID del producto", width=200)
+        nombre_input = ft.TextField(label="Nombre del producto", width=200)
+        precio_input = ft.TextField(label="Precio", width=150, keyboard_type=ft.KeyboardType.NUMBER)
+        existencia_input = ft.TextField(label="En existencia", width=150, keyboard_type=ft.KeyboardType.NUMBER)
+
+        confirm_btn = ft.ElevatedButton("Confirmar", icon=ft.icons.CHECK_CIRCLE)
+
+        formulario_container = ft.Column(
+            controls=[
+                ft.Row([
+                    id_input,
+                    nombre_input,
+                    precio_input,
+                    existencia_input,
+                    confirm_btn,
+                ], spacing=10)
+            ],
+            visible=False
+        )
+
+        # Mostrar formulario al presionar agregar
+        def mostrar_formulario(e):
+            formulario_container.visible = not formulario_container.visible
+            page.update()
+
+        agregar_btn.on_click = mostrar_formulario
+
+        # Confirmar producto
+        def confirmar_agregado(e):
+            try:
+                productos.append({
+                    "id": id_input.value,
+                    "nombre": nombre_input.value,
+                    "precio": float(precio_input.value),
+                    "cantidad": int(existencia_input.value),
+                })
+
+                # Limpiar campos
+                id_input.value = ""
+                nombre_input.value = ""
+                precio_input.value = ""
+                existencia_input.value = ""
+
+                formulario_container.visible = False
+                actualizar_tabla()
+            except Exception as err:
+                print("Error al agregar producto:", err)
+
+        confirm_btn.on_click = confirmar_agregado
+
         actualizar_tabla()
+        
+                # Controles para eliminar producto
+        eliminar_input = ft.TextField(label="ID o Nombre del producto a eliminar", width=300)
+        eliminar_confirm_btn = ft.ElevatedButton("Eliminar", icon=ft.icons.DELETE_FOREVER)
+
+        formulario_eliminar_container = ft.Column(
+            controls=[
+                ft.Row([
+                    eliminar_input,
+                    eliminar_confirm_btn,
+                ], spacing=10)
+            ],
+            visible=False
+        )
+
+        # Mostrar formulario al presionar eliminar
+        def mostrar_formulario_eliminar(e):
+            formulario_eliminar_container.visible = not formulario_eliminar_container.visible
+            page.update()
+
+        eliminar_btn.on_click = mostrar_formulario_eliminar
+
+        # Eliminar producto por ID o nombre
+        def confirmar_eliminacion(e):
+            criterio = eliminar_input.value.strip().lower()
+            if not criterio:
+                return
+
+            original_len = len(productos)
+            productos[:] = [
+                p for p in productos
+                if p["id"].lower() != criterio and p["nombre"].lower() != criterio
+            ]
+
+            if len(productos) < original_len:
+                eliminar_input.value = ""
+                formulario_eliminar_container.visible = False
+                actualizar_tabla()
+                page.snack_bar = ft.SnackBar(ft.Text("Producto eliminado exitosamente"), bgcolor=ft.colors.GREEN)
+                page.snack_bar.open = True
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text("Producto no encontrado"), bgcolor=ft.colors.RED)
+                page.snack_bar.open = True
+
+            page.update()
+
+        eliminar_confirm_btn.on_click = confirmar_eliminacion
+        importar_btn = ft.ElevatedButton("Importar", icon=ft.icons.UPLOAD)
 
         return ft.Column(
             controls=[
                 ft.Row(
                     controls=[
                         ft.Text("Gestión de Inventario", size=24, weight=ft.FontWeight.BOLD, expand=True),
+                        agregar_btn,
+                        eliminar_btn,
+                        importar_btn,
                         exportar_btn
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                 ),
+                formulario_container,
+                formulario_eliminar_container,
                 ft.Container(
                     content=ft.ListView(
                         controls=[inventario_table],
@@ -312,6 +416,7 @@ def admin_interface(page: ft.Page):
             expand=True,
             spacing=20
         )
+
 
     def reportes_view():
         rango_selector = ft.Dropdown(
