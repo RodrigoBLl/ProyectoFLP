@@ -1,4 +1,5 @@
 import flet as ft
+import datetime
 
 def admin_interface(page: ft.Page):
     page.title = "Punto de Venta - Cajero"
@@ -19,9 +20,10 @@ def admin_interface(page: ft.Page):
             ft.NavigationRailDestination(icon=ft.Icons.SHOPPING_CART, label="Ventas"),
             ft.NavigationRailDestination(icon=ft.Icons.INVENTORY, label="Inventario"),
             ft.NavigationRailDestination(icon=ft.Icons.ANALYTICS, label="Reportes"),
+            ft.NavigationRailDestination(icon=ft.Icons.LOGOUT, label="Salir"),
         ],
         selected_index=0,
-    )  
+    )
     # Payment Dialog
     pago_dialog = ft.AlertDialog(
         title=ft.Text("¡Venta exitosa!", text_align=ft.TextAlign.CENTER),
@@ -416,67 +418,125 @@ def admin_interface(page: ft.Page):
             expand=True,
             spacing=20
         )
+        
 
 
-    def reportes_view():
-        rango_selector = ft.Dropdown(
-            label="Selecciona el rango de tiempo",
-            options=[
-                ft.dropdown.Option("Día"),
-                ft.dropdown.Option("Semana"),
-                ft.dropdown.Option("Mes"),
-            ],
-            value="Día",  # Valor por defecto
-            width=300
+    def reportes_view(page):
+        # Crear DatePickers
+        fecha_inicio_picker = ft.DatePicker(
+            on_change=lambda e: actualizar_fecha_inicio(),
+            first_date=datetime.date(2020, 1, 1),
+            last_date=datetime.date(2100, 12, 31),
+        )
+        fecha_fin_picker = ft.DatePicker(
+            on_change=lambda e: actualizar_fecha_fin(),
+            first_date=datetime.date(2020, 1, 1),
+            last_date=datetime.date(2100, 12, 31),
         )
 
+        # Agregarlos una sola vez al overlay
+        if fecha_inicio_picker not in page.overlay:
+            page.overlay.append(fecha_inicio_picker)
+        if fecha_fin_picker not in page.overlay:
+            page.overlay.append(fecha_fin_picker)
+
+        # Campos para mostrar las fechas seleccionadas
+        fecha_inicio_field = ft.TextField(label="Fecha Inicio", read_only=True, width=200)
+        fecha_fin_field = ft.TextField(label="Fecha Fin", read_only=True, width=200)
+
+        # Funciones de actualización
+        def actualizar_fecha_inicio():
+            if fecha_inicio_picker.value:
+                fecha_inicio_field.value = fecha_inicio_picker.value.strftime("%Y-%m-%d")
+                page.update()
+
+        def actualizar_fecha_fin():
+            if fecha_fin_picker.value:
+                fecha_fin_field.value = fecha_fin_picker.value.strftime("%Y-%m-%d")
+                page.update()
+
+        # Botones para abrir DatePickers
+        seleccionar_inicio_btn = ft.ElevatedButton(
+            "Seleccionar Fecha Inicio",
+            icon=ft.icons.CALENDAR_MONTH,
+            on_click=lambda e: abrir_fecha_inicio()
+        )
+
+        seleccionar_fin_btn = ft.ElevatedButton(
+            "Seleccionar Fecha Fin",
+            icon=ft.icons.CALENDAR_MONTH,
+            on_click=lambda e: abrir_fecha_fin()
+        )
+
+        # Funciones para abrir
+        def abrir_fecha_inicio():
+            fecha_inicio_picker.open = True
+            page.update()
+
+        def abrir_fecha_fin():
+            fecha_fin_picker.open = True
+            page.update()
+
+        # Dropdown de formato
         formato_selector = ft.Dropdown(
-            label="Selecciona el formato",
+            label="Formato de exportación",
             options=[
                 ft.dropdown.Option("PDF"),
                 ft.dropdown.Option("Excel"),
             ],
-            value="PDF",  # Valor por defecto
-            width=300
+            value="PDF",
+            width=200
         )
 
         resultado_texto = ft.Text("", size=16, color=ft.Colors.BLUE)
 
         def exportar_reporte(e):
-            rango = rango_selector.value
+            fecha_inicio = fecha_inicio_field.value
+            fecha_fin = fecha_fin_field.value
             formato = formato_selector.value
-            resultado_texto.value = f"Exportando reporte de {rango} en formato {formato}..."
+            if fecha_inicio and fecha_fin:
+                resultado_texto.value = f"Exportando ventas del {fecha_inicio} al {fecha_fin} en {formato}..."
+            else:
+                resultado_texto.value = "Selecciona ambas fechas."
             page.update()
-            # Aquí iría la lógica real de exportación
 
         exportar_btn = ft.ElevatedButton(
             "Exportar Reporte",
-            icon=ft.Icons.DOWNLOAD,
+            icon=ft.icons.DOWNLOAD,
             on_click=exportar_reporte
         )
 
-        return ft.Column([
-            ft.Text("Reportes de Ventas", size=24, weight=ft.FontWeight.BOLD),
-            rango_selector,
-            formato_selector,
-            exportar_btn,
-            resultado_texto
-        ], spacing=20)
+        return ft.Column(
+            controls=[
+                ft.Text("Reportes de Ventas", size=24, weight=ft.FontWeight.BOLD),
+                ft.Row([
+                    fecha_inicio_field,
+                    seleccionar_inicio_btn,
+                ], spacing=10),
+                ft.Row([
+                    fecha_fin_field,
+                    seleccionar_fin_btn,
+                ], spacing=10),
+                formato_selector,
+                exportar_btn,
+                resultado_texto
+            ],
+            spacing=20,
+            expand=True
+        )
 
     content = ft.Container(expand=True)
-
+    
+    
     def change_view(e):
         index = navigation.selected_index if e is None else e.control.selected_index
+
         if index == 0:
             content.content = ventas_view()
         elif index == 1:
             content.content = inventario_view()
         elif index == 2:
-            content.content = reportes_view()
-        
-        # Ocultar total flotante cuando no está en ventas
-        if index != 0:
-            total_floating.visible = False
+            content.content = reportes_view(page)
         page.update()
 
     navigation.on_change = change_view
